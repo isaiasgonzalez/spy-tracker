@@ -84,7 +84,7 @@ function buildCaptureCard() {
   title.textContent = ' SPY';
   const legend = document.createElement('p');
   legend.style.cssText = 'font-family:' + MONO + '; font-size:10px; letter-spacing:0.05em; color:var(--ink-700); margin:0;';
-  legend.textContent = 'spy-tracker.vercel.app | x.com/isaias3g';
+  legend.textContent = 'spy500-tracker.vercel.app | x.com/isaias3g';
   header.append(eyebrow, title, legend);
 
   // Cifra principal: variación total del índice en el día.
