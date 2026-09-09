@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QQQ Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23F5F6F2' rx='8'/><rect x='1' y='1' width='62' height='62' fill='none' stroke='%23DEE3E1' stroke-width='2' rx='7'/><text x='32' y='41' font-family='IBM Plex Mono, monospace' font-size='24' font-weight='600' fill='%2312181A' text-anchor='middle'>qqq</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="min-h-screen">
+  <div class="max-w-4xl mx-auto px-5 py-12 sm:py-16">
+
+    <!-- Masthead -->
+    <header class="mb-8 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="font-data text-[11px] tracking-[0.2em] text-[var(--ink-700)] uppercase mb-2">Variación diaria del índice</p>
+        <h1 class="font-display font-medium text-4xl sm:text-[2.75rem] leading-tight text-[var(--ink-950)]">NASDAQ 100</h1>
+        <p class="text-[var(--ink-700)] mt-2 text-[15px] max-w-xl">Todas las acciones del QQQ, ordenadas por peso, con su variación diaria y cuánto contribuyen al índice.</p>
+      </div>
+      <div class="flex flex-col items-end gap-3 shrink-0">
+        <!-- Variación real del QQQ por horizonte (se completa con JS) -->
+        <div id="index-performance" class="hidden flex items-start gap-5"></div>
+        <button
+          id="btn-captura"
+          type="button"
+          disabled
+          class="group inline-flex items-center gap-2 font-data text-xs uppercase tracking-wide text-[var(--ink-700)] border border-[var(--ink-150)] rounded-sm px-3.5 py-2.5 bg-[var(--surface)] transition-colors hover:text-[var(--ink-950)] hover:border-[var(--ink-700)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-[var(--ink-700)] disabled:hover:border-[var(--ink-150)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-700)]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span id="btn-captura-label">Descargar resumen</span>
+        </button>
+        <div class="relative">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-700)]">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input
+            id="input-buscar-ticker"
+            type="text"
+            disabled
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Buscar ticker…"
+            aria-label="Buscar ticker"
+            class="font-data text-xs text-[var(--ink-950)] border border-[var(--ink-150)] rounded-sm pl-8 pr-3 py-2.5 bg-[var(--surface)] w-40 placeholder:text-[var(--ink-700)] placeholder:normal-case disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-700)]"
+          />
+        </div>
+      </div>
+    </header>
+
+    <!-- Franja de estadísticas (se completa con JS a partir de los datos cargados) -->
+    <div id="stats-strip" class="hidden font-data text-xs text-[var(--ink-700)] border-y border-[var(--ink-150)] py-2.5 mb-6 flex flex-wrap gap-x-2 gap-y-1 items-center uppercase tracking-wide"></div>
+
+    <!-- Tarjeta con la tabla -->
+    <div class="bg-[var(--surface)] border border-[var(--ink-150)] rounded-sm">
+      <div id="state-container"></div>
+    </div>
+
+    <!-- Pie de página -->
+    <footer class="mt-8 text-center">
+      <p class="font-data text-[11px] tracking-wide text-[var(--ink-700)]" id="footer-legend"></p>
+    </footer>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

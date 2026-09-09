@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* Paleta y tokens de color. Cambiá acá si querés otro esquema de colores. */
+:root {
+  --ink-950: #12181A;
+  --ink-700: #48525A;
+  --ink-150: #DEE3E1;
+  --paper: #F5F6F2;
+  --surface: #FFFFFF;
+  --gain: #0E7A4C;
+  --loss: #AE2E22;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink-950);
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.font-display { font-family: 'Fraunces', serif; }
+.font-data { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* Triángulos de suba/baja usados en la tabla y en la tarjeta de captura. */
+.tri-up, .tri-down {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.tri-up { border-bottom: 6px solid currentColor; margin-bottom: 1px; }
+.tri-down { border-top: 6px solid currentColor; margin-top: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
