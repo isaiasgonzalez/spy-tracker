@@ -52,7 +52,7 @@ function renderTable(container, data) {
 
   const table = document.createElement('table');
   table.className = 'w-full text-sm border-collapse';
-  table.setAttribute('aria-label', 'Composición del QQQ');
+  table.setAttribute('aria-label', 'Composición del SPY');
 
   table.appendChild(buildHead(container));
 
@@ -163,7 +163,7 @@ function buildRow(item) {
 
   const tdImpacto = document.createElement('td');
   tdImpacto.className = 'px-4 py-3 text-right font-data';
-  tdImpacto.appendChild(buildDelta(item.impacto_qqq));
+  tdImpacto.appendChild(buildDelta(item.impacto_SPY));
 
   tr.append(tdTicker, tdNombre, tdPeso, tdVar, tdImpacto);
   return tr;

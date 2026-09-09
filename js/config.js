@@ -3,7 +3,7 @@
 // orden, o apuntar a otro archivo de datos: TODO pasa por acá y nada más.
 // ---------------------------------------------------------------------------
 
-export const DATA_URL = 'qqq_data.json';
+export const DATA_URL = 'SPY_data.json';
 
 // Definición de columnas: la fuente única de verdad para encabezados, orden y
 // tipo de dato. table.js recorre este array para dibujar el encabezado y las
@@ -13,5 +13,5 @@ export const columns = [
   { key: 'nombre', label: 'Nombre', type: 'string', align: 'left' },
   { key: 'peso', label: 'Peso (%)', type: 'number', align: 'right' },
   { key: 'variacion_diaria', label: 'Variación Diaria (%)', type: 'number', align: 'right' },
-  { key: 'impacto_qqq', label: 'Impacto en el QQQ', type: 'number', align: 'right' },
+  { key: 'impacto_SPY', label: 'Impacto en el SPY', type: 'number', align: 'right' },
 ];

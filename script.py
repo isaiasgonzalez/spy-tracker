@@ -20,17 +20,17 @@ import yfinance as yf
 # Configuración
 # --------------------------------------------------------------------------
 
-TICKER_INDICE = "QQQ"
+TICKER_INDICE = "SPY"
 
 DIRECTORIO_SCRIPT = Path(__file__).resolve().parent
-ARCHIVO_PESOS_BASE = DIRECTORIO_SCRIPT / "qqq_componentes_base.json"
-ARCHIVO_SALIDA = DIRECTORIO_SCRIPT / "qqq_data.json"
+ARCHIVO_PESOS_BASE = DIRECTORIO_SCRIPT / "SPY_componentes_base.json"
+ARCHIVO_SALIDA = DIRECTORIO_SCRIPT / "SPY_data.json"
 
 # Ver la nota en el docstring del módulo: esta URL es la parte más frágil
 # del pipeline porque depende del sitio del emisor del fondo.
 URL_HOLDINGS_OFICIALES = (
-    "https://www.invesco.com/us/financial-products/etfs/holdings/main/"
-    "holdings/0?audienceType=Investor&action=download&ticker=QQQ"
+    "https://www..com/us/financial-products/etfs/holdings/main/"
+    "holdings/0?audienceType=Investor&action=download&ticker=SPY"
 )
 
 TIMEOUT_RED = 15  # segundos
@@ -38,7 +38,7 @@ MAX_REINTENTOS = 3
 ESPERA_ENTRE_REINTENTOS = 2  # segundos
 PERIODO_DESCARGA_PRECIOS = "5d"  # margen para saltar fines de semana/feriados
 
-# Historial largo, SOLO para el ticker del índice (QQQ), usado para calcular
+# Historial largo, SOLO para el ticker del índice (SPY), usado para calcular
 # variación mensual y anual reales. "2y" da margen de sobra para encontrar
 # una sesión de referencia a ~30 y ~365 días de calendario hacia atrás,
 # incluso salteando fines de semana/feriados.
@@ -51,7 +51,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-log = logging.getLogger("qqq_pipeline")
+log = logging.getLogger("SPY_pipeline")
 
 
 # --------------------------------------------------------------------------
@@ -115,7 +115,7 @@ def _normalizar_a_porcentaje(serie: pd.Series) -> pd.Series:
     Normaliza una serie de pesos a puntos porcentuales (0-100).
 
     Algunas fuentes expresan el peso como fracción (0.0523) y otras ya como
-    porcentaje (5.23). Como ningún componente individual del QQQ supera
+    porcentaje (5.23). Como ningún componente individual del SPY supera
     ~15% del índice, se usa ese umbral como heurística para decidir si
     hace falta multiplicar por 100.
     """
@@ -177,7 +177,7 @@ def _pesos_desde_yfinance_top10(ticker_fondo: str = TICKER_INDICE) -> pd.DataFra
     Fallback: trae el Top 10 de holdings del fondo vía yfinance.
 
     Yahoo Finance sólo expone el Top 10 de un ETF (no la lista completa),
-    así que este camino nunca cubre el 100% de los componentes del QQQ,
+    así que este camino nunca cubre el 100% de los componentes del SPY,
     pero permite que el pipeline funcione sin depender de una URL externa.
     """
     fondo = yf.Ticker(ticker_fondo)
@@ -403,7 +403,7 @@ def actualizar_precios() -> bool:
         diario del índice.
 
     El resultado se exporta ordenado por peso (descendente) a
-    ARCHIVO_SALIDA (qqq_data.json). Devuelve True/False según si se pudo
+    ARCHIVO_SALIDA (SPY_data.json). Devuelve True/False según si se pudo
     generar la salida.
     """
     log.info("=== actualizar_precios: iniciando ===")
@@ -470,23 +470,23 @@ def actualizar_precios() -> bool:
     filas.sort(key=lambda r: r["peso_pct"], reverse=True)
 
     datos_indice = _procesar_componente(TICKER_INDICE, historial, fecha_mercado)
-    var_real_qqq = datos_indice["variacion_pct"] if datos_indice else None
+    var_real_SPY = datos_indice["variacion_pct"] if datos_indice else None
 
     # Variación mensual/anual: histórico aparte, solo del índice. Si falla
     # (red, ticker sin suficiente historia, etc.) quedan en None y el
     # frontend ya sabe mostrar "—" en vez de romper.
     cierres_largos = _descargar_historico_largo(TICKER_INDICE)
-    var_mensual_qqq = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_MES)
-    var_anual_qqq = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_ANIO)
+    var_mensual_SPY = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_MES)
+    var_anual_SPY = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_ANIO)
 
     payload = {
         "indice": TICKER_INDICE,
         "fecha_actualizacion": datetime.now().isoformat(timespec="seconds"),
         "fecha_datos_mercado": fecha_mercado.isoformat(),
         "mercado_operado_hoy": mercado_operado_hoy,
-        "variacion_real_qqq": var_real_qqq,
-        "variacion_mensual_qqq": var_mensual_qqq,
-        "variacion_anual_qqq": var_anual_qqq,
+        "variacion_real_SPY": var_real_SPY,
+        "variacion_mensual_SPY": var_mensual_SPY,
+        "variacion_anual_SPY": var_anual_SPY,
         "total_componentes": len(filas),
         "componentes": filas,
         "errores": errores,
@@ -510,7 +510,7 @@ def actualizar_precios() -> bool:
 # --------------------------------------------------------------------------
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Pipeline de datos del QQQ (componentes, pesos y precios).")
+    parser = argparse.ArgumentParser(description="Pipeline de datos del SPY (componentes, pesos y precios).")
     parser.add_argument(
         "modo",
         choices=["pesos", "precios", "todo"],

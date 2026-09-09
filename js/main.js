@@ -1,6 +1,6 @@
 import { DATA_URL } from './config.js';
 import { normalizeFeed } from './normalize.js';
-import { state, getQqqTotal, getMonthlyTotal, getYearlyTotal } from './state.js';
+import { state, getSPYTotal, getMonthlyTotal, getYearlyTotal } from './state.js';
 import { renderLoading, renderError } from './ui/loading-error.js';
 import { renderStats } from './ui/stats.js';
 import { renderIndexPerformance } from './ui/index-performance.js';
@@ -44,7 +44,7 @@ async function init() {
     state.rootData = normalized.root;
     renderStats(statsStrip, state.rawData);
     renderIndexPerformance(indexPerformanceEl, {
-      daily: getQqqTotal(),
+      daily: getSPYTotal(),
       monthly: getMonthlyTotal(),
       yearly: getYearlyTotal(),
     });

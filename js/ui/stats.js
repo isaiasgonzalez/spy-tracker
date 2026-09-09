@@ -10,7 +10,7 @@ export function renderStats(statsStrip, data) {
   statsStrip.replaceChildren();
   const up = data.filter(function (d) { return Number(d.variacion_diaria) > 0; }).length;
   const down = data.filter(function (d) { return Number(d.variacion_diaria) < 0; }).length;
-  const netImpact = data.reduce(function (sum, d) { return sum + Number(d.impacto_qqq || 0); }, 0);
+  const netImpact = data.reduce(function (sum, d) { return sum + Number(d.impacto_SPY || 0); }, 0);
 
   const items = [
     { text: data.length + ' acciones', tone: null },

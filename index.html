@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>QQQ Tracker</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23F5F6F2' rx='8'/><rect x='1' y='1' width='62' height='62' fill='none' stroke='%23DEE3E1' stroke-width='2' rx='7'/><text x='32' y='41' font-family='IBM Plex Mono, monospace' font-size='24' font-weight='600' fill='%2312181A' text-anchor='middle'>qqq</text></svg>">
+<title>SPY Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23F5F6F2' rx='8'/><rect x='1' y='1' width='62' height='62' fill='none' stroke='%23DEE3E1' stroke-width='2' rx='7'/><text x='32' y='41' font-family='IBM Plex Mono, monospace' font-size='24' font-weight='600' fill='%2312181A' text-anchor='middle'>SPY</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <link rel="stylesheet" href="css/styles.css" />
@@ -16,11 +16,11 @@
     <header class="mb-8 flex flex-wrap items-start justify-between gap-4">
       <div>
         <p class="font-data text-[11px] tracking-[0.2em] text-[var(--ink-700)] uppercase mb-2">Variación diaria del índice</p>
-        <h1 class="font-display font-medium text-4xl sm:text-[2.75rem] leading-tight text-[var(--ink-950)]">NASDAQ 100</h1>
-        <p class="text-[var(--ink-700)] mt-2 text-[15px] max-w-xl">Todas las acciones del QQQ, ordenadas por peso, con su variación diaria y cuánto contribuyen al índice.</p>
+        <h1 class="font-display font-medium text-4xl sm:text-[2.75rem] leading-tight text-[var(--ink-950)]">S&P 500</h1>
+        <p class="text-[var(--ink-700)] mt-2 text-[15px] max-w-xl">Todas las acciones del SPY, ordenadas por peso, con su variación diaria y cuánto contribuyen al índice.</p>
       </div>
       <div class="flex flex-col items-end gap-3 shrink-0">
-        <!-- Variación real del QQQ por horizonte (se completa con JS) -->
+        <!-- Variación real del SPY por horizonte (se completa con JS) -->
         <div id="index-performance" class="hidden flex items-start gap-5"></div>
         <button
           id="btn-captura"

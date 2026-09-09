@@ -2,11 +2,11 @@
 // Adaptador de datos. Si el proveedor de datos cambia los nombres de campo,
 // o el JSON viene envuelto en una clave distinta, se arregla ACÁ, sin tocar
 // nada del resto de la app (tabla, estadísticas, captura, etc. siempre
-// reciben el mismo shape: { ticker, nombre, peso, variacion_diaria, impacto_qqq }).
+// reciben el mismo shape: { ticker, nombre, peso, variacion_diaria, impacto_SPY }).
 // ---------------------------------------------------------------------------
 
 // Acepta tanto los nombres de campo del JSON de ejemplo (variacion_diaria,
-// impacto_qqq) como los que use una fuente real distinta (variacion_pct,
+// impacto_SPY) como los que use una fuente real distinta (variacion_pct,
 // impacto_indice_pct, peso_pct), para no depender de una convención exacta.
 function normalizeItem(item) {
   return {
@@ -14,7 +14,7 @@ function normalizeItem(item) {
     nombre: item.nombre,
     peso: item.peso !== undefined ? item.peso : item.peso_pct,
     variacion_diaria: item.variacion_pct !== undefined ? item.variacion_pct : item.variacion_diaria,
-    impacto_qqq: item.impacto_indice_pct !== undefined ? item.impacto_indice_pct : item.impacto_qqq,
+    impacto_SPY: item.impacto_indice_pct !== undefined ? item.impacto_indice_pct : item.impacto_SPY,
   };
 }
 

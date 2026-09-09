@@ -27,7 +27,7 @@ export function renderError(container, statsStrip, err) {
   title.textContent = 'No se pudieron cargar los datos.';
   const detail = document.createElement('p');
   detail.className = 'font-data text-xs text-[var(--ink-700)] mt-3 max-w-md mx-auto leading-relaxed';
-  detail.textContent = 'Verificá que "qqq_data.json" esté junto a este archivo y que lo estés sirviendo desde un servidor local (no abierto como file://). Detalle: ' + err.message;
+  detail.textContent = 'Verificá que "SPY_data.json" esté junto a este archivo y que lo estés sirviendo desde un servidor local (no abierto como file://). Detalle: ' + err.message;
   wrap.append(title, detail);
   container.appendChild(wrap);
 }

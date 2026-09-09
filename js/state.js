@@ -7,18 +7,18 @@
 
 export const state = {
   rawData: [],
-  rootData: null, // objeto raíz del JSON cuando trae variacion_real_qqq (ver normalize.js)
+  rootData: null, // objeto raíz del JSON cuando trae variacion_real_SPY (ver normalize.js)
   sortState: { key: 'peso', dir: 'desc' },
   searchQuery: '', // texto tipeado en el buscador de ticker (ver ui/search.js)
 };
 
-// Usa la variación real del índice si vino en el JSON (rootData.variacion_real_qqq);
+// Usa la variación real del índice si vino en el JSON (rootData.variacion_real_SPY);
 // si no, cae de vuelta a la suma de impactos como estimación.
-export function getQqqTotal() {
-  if (state.rootData && state.rootData.variacion_real_qqq !== undefined && state.rootData.variacion_real_qqq !== null) {
-    return Number(state.rootData.variacion_real_qqq);
+export function getSPYTotal() {
+  if (state.rootData && state.rootData.variacion_real_SPY !== undefined && state.rootData.variacion_real_SPY !== null) {
+    return Number(state.rootData.variacion_real_SPY);
   }
-  return state.rawData.reduce(function (sum, d) { return sum + Number(d.impacto_qqq || 0); }, 0);
+  return state.rawData.reduce(function (sum, d) { return sum + Number(d.impacto_SPY || 0); }, 0);
 }
 
 // Variación del índice en horizontes más largos (mes, año). A diferencia del
@@ -27,11 +27,11 @@ export function getQqqTotal() {
 // Acepta varios nombres de campo posibles en la raíz del JSON, mismo criterio
 // que normalize.js usa para los constituyentes.
 export function getMonthlyTotal() {
-  return readPeriodField(['variacion_mensual_qqq', 'variacion_1m_qqq', 'variacion_mes_qqq']);
+  return readPeriodField(['variacion_mensual_SPY', 'variacion_1m_SPY', 'variacion_mes_SPY']);
 }
 
 export function getYearlyTotal() {
-  return readPeriodField(['variacion_anual_qqq', 'variacion_1y_qqq', 'variacion_anio_qqq']);
+  return readPeriodField(['variacion_anual_SPY', 'variacion_1y_SPY', 'variacion_anio_SPY']);
 }
 
 function readPeriodField(candidateKeys) {

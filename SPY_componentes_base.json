@@ -1,7 +1,7 @@
 {
-  "indice": "QQQ",
+  "indice": "SPY",
   "fuente": "csv_local_100",
-  "fecha_actualizacion": "2026-09-09T06:13:50",
+  "fecha_actualizacion": "2026-09-09T06:20:39",
   "total_componentes": 505,
   "componentes": [
     {
@@ -2176,7 +2176,7 @@
     },
     {
       "ticker": "IVZ",
-      "nombre": "Invesco Ltd",
+      "nombre": "Ltd",
       "peso_pct": 0.02
     },
     {

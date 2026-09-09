@@ -1,4 +1,4 @@
-import { state, getQqqTotal } from './state.js';
+import { state, getSPYTotal } from './state.js';
 import { formatSigned, formatPercent } from './format.js';
 import { buildDeltaInline } from './ui/delta.js';
 
@@ -34,7 +34,7 @@ async function onCaptureClick(captureBtn, captureBtnLabel) {
     const canvas = await html2canvas(card, { scale: 2, backgroundColor: null });
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
-    link.download = 'QQQ_resumen_' + new Date().toISOString().slice(0, 10) + '.png';
+    link.download = 'SPY_resumen_' + new Date().toISOString().slice(0, 10) + '.png';
     link.click();
     captureBtnLabel.textContent = 'Listo ✓';
   } catch (err) {
@@ -59,11 +59,11 @@ const TOP_N = 5;
 // necesario para que las secciones se distingan. Igual que el resto del
 // archivo: todo dato dinámico entra vía textContent.
 function buildCaptureCard() {
-  const total = getQqqTotal();
-  const topSuba = state.rawData.slice().sort(function (a, b) { return Number(b.impacto_qqq) - Number(a.impacto_qqq); }).slice(0, TOP_N);
-  const topBaja = state.rawData.slice().sort(function (a, b) { return Number(a.impacto_qqq) - Number(b.impacto_qqq); }).slice(0, TOP_N);
-  const sumSuba = topSuba.reduce(function (acc, it) { return acc + Number(it.impacto_qqq || 0); }, 0);
-  const sumBaja = topBaja.reduce(function (acc, it) { return acc + Number(it.impacto_qqq || 0); }, 0);
+  const total = getSPYTotal();
+  const topSuba = state.rawData.slice().sort(function (a, b) { return Number(b.impacto_SPY) - Number(a.impacto_SPY); }).slice(0, TOP_N);
+  const topBaja = state.rawData.slice().sort(function (a, b) { return Number(a.impacto_SPY) - Number(b.impacto_SPY); }).slice(0, TOP_N);
+  const sumSuba = topSuba.reduce(function (acc, it) { return acc + Number(it.impacto_SPY || 0); }, 0);
+  const sumBaja = topBaja.reduce(function (acc, it) { return acc + Number(it.impacto_SPY || 0); }, 0);
   const fechaHoy = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const MONO = '"IBM Plex Mono", monospace';
@@ -81,10 +81,10 @@ function buildCaptureCard() {
   eyebrow.textContent = 'Resumen diario · ' + fechaHoy;
   const title = document.createElement('p');
   title.style.cssText = 'font-family:' + SERIF + '; font-weight:500; font-size:26px; color:var(--ink-950); margin:0 0 8px 0;';
-  title.textContent = 'Invesco QQQ';
+  title.textContent = ' SPY';
   const legend = document.createElement('p');
   legend.style.cssText = 'font-family:' + MONO + '; font-size:10px; letter-spacing:0.05em; color:var(--ink-700); margin:0;';
-  legend.textContent = 'qqq-tracker.vercel.app | x.com/isaias3g';
+  legend.textContent = 'spy-tracker.vercel.app | x.com/isaias3g';
   header.append(eyebrow, title, legend);
 
   // Cifra principal: variación total del índice en el día.
@@ -159,7 +159,7 @@ function buildMoverColumn(heading, tone, items, sum, total) {
 
     const aporteWrap = document.createElement('span');
     aporteWrap.style.cssText = 'width:60px; font-size:13px; text-align:center; display:inline-block;';
-    aporteWrap.appendChild(buildDeltaInline(item.impacto_qqq, ' pp'));
+    aporteWrap.appendChild(buildDeltaInline(item.impacto_SPY, ' pp'));
 
     row.append(ticker, varWrap, aporteWrap);
     col.appendChild(row);

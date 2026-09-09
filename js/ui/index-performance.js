@@ -2,7 +2,7 @@ import { formatPercent } from '../format.js';
 
 // ---------------------------------------------------------------------------
 // Bloque "Año · Mes · Día" en la esquina superior derecha, con la variación
-// REAL del índice QQQ (no de un constituyente puntual) en cada horizonte.
+// REAL del índice SPY (no de un constituyente puntual) en cada horizonte.
 // Si el JSON no trae variación mensual o anual, se muestra un guion en vez
 // de romper o mentir con un cero.
 // ---------------------------------------------------------------------------

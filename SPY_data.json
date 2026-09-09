@@ -1,11 +1,11 @@
 {
-  "indice": "QQQ",
-  "fecha_actualizacion": "2026-09-09T06:14:06",
+  "indice": "SPY",
+  "fecha_actualizacion": "2026-09-09T06:20:55",
   "fecha_datos_mercado": "2026-09-08",
   "mercado_operado_hoy": false,
-  "variacion_real_qqq": -0.0835,
-  "variacion_mensual_qqq": -0.6459,
-  "variacion_anual_qqq": 24.0969,
+  "variacion_real_SPY": -0.5492,
+  "variacion_mensual_SPY": -0.9441,
+  "variacion_anual_SPY": 18.0525,
   "total_componentes": 504,
   "componentes": [
     {
@@ -4350,7 +4350,7 @@
     },
     {
       "ticker": "IVZ",
-      "nombre": "Invesco Ltd",
+      "nombre": "Ltd",
       "peso_pct": 0.02,
       "precio_actual": 32.34,
       "precio_cierre_anterior": 33.07,
