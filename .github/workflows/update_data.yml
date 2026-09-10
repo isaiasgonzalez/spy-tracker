@@ -1,0 +1,38 @@
+name: Actualización de precios spy
+
+on:
+  schedule:
+    - cron: '*/15 13-20 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write 
+
+jobs:
+  update-prices:
+    name: Actualizar precios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configurar entorno Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install yfinance pandas
+
+      - name: Ejecutar actualización de precios
+        run: python script.py precios
+
+      - name: Commit y push de SPY_data.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SPY_data.json
+          git diff --staged --quiet && echo "sin cambios" || git commit -m "precios spy"
+          git push origin main
