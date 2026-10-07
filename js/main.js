@@ -42,7 +42,7 @@ async function init() {
     const normalized = normalizeFeed(json);
     state.rawData = normalized.items;
     state.rootData = normalized.root;
-    renderStats(statsStrip, state.rawData);
+    renderStats(statsStrip, state.rawData, state.rootData);
     renderIndexPerformance(indexPerformanceEl, {
       daily: getSPYTotal(),
       monthly: getMonthlyTotal(),

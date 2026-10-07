@@ -26,11 +26,10 @@ DIRECTORIO_SCRIPT = Path(__file__).resolve().parent
 ARCHIVO_PESOS_BASE = DIRECTORIO_SCRIPT / "SPY_componentes_base.json"
 ARCHIVO_SALIDA = DIRECTORIO_SCRIPT / "SPY_data.json"
 
-# Ver la nota en el docstring del módulo: esta URL es la parte más frágil
-# del pipeline porque depende del sitio del emisor del fondo.
+# Archivo oficial de composición diaria publicado por State Street.
 URL_HOLDINGS_OFICIALES = (
-    "https://www..com/us/financial-products/etfs/holdings/main/"
-    "holdings/0?audienceType=Investor&action=download&ticker=SPY"
+    "https://www.ssga.com/library-content/products/fund-data/etfs/us/"
+    "holdings-daily-us-en-spy.xlsx"
 )
 
 TIMEOUT_RED = 15  # segundos
@@ -202,41 +201,56 @@ def _pesos_desde_yfinance_top10(ticker_fondo: str = TICKER_INDICE) -> pd.DataFra
     return salida.sort_values("peso_pct", ascending=False).reset_index(drop=True)
 
 
-def actualizar_pesos() -> bool:
+def _pesos_oficiales() -> pd.DataFrame:
+    respuesta = requests.get(URL_HOLDINGS_OFICIALES, timeout=TIMEOUT_RED)
+    respuesta.raise_for_status()
+    tabla = pd.read_excel(io.BytesIO(respuesta.content), header=None)
+    for i, fila in tabla.iterrows():
+        columnas = {str(v).strip().lower() for v in fila}
+        if {"ticker", "name", "weight"}.issubset(columnas):
+            datos = tabla.iloc[i + 1:].copy()
+            datos.columns = [str(v).strip() for v in fila]
+            componentes = _parsear_csv_holdings(datos.to_csv(index=False))
+            if len(componentes) < 400:
+                raise ValueError("La composición oficial no contiene suficientes acciones del SPY.")
+            return componentes
+    raise ValueError("No se encontró el encabezado de la composición oficial.")
+
+
+def actualizar_pesos(archivo_salida: Path = ARCHIVO_PESOS_BASE, fuente: str = "local") -> bool:
     """
-    Carga los componentes y ponderaciones desde el archivo local spy500.csv.
+    Carga componentes y ponderaciones desde el CSV local o State Street.
     """
     log.info("=== actualizar_pesos: iniciando ===")
     
-    archivo_csv = DIRECTORIO_SCRIPT / "spy500.csv"
-    if not archivo_csv.exists():
-        log.error("No se encontró el archivo %s en la carpeta del script.", archivo_csv)
-        return False
-
     try:
-        contenido_csv = archivo_csv.read_text(encoding="utf-8")
-        componentes = _parsear_csv_holdings(contenido_csv)
-        fuente = "csv_local_100"
-        log.info("Se obtuvieron %s componentes correctamente desde spy500.csv.", len(componentes))
+        if fuente == "oficial":
+            componentes = _pesos_oficiales()
+            fuente_payload = "ssga_oficial"
+        else:
+            archivo_csv = DIRECTORIO_SCRIPT / "spy500.csv"
+            componentes = _parsear_csv_holdings(archivo_csv.read_text(encoding="utf-8"))
+            fuente_payload = "csv_local_100"
+        log.info("Se obtuvieron %s componentes desde la fuente %s.", len(componentes), fuente)
     except Exception as e:
-        log.error("Falló el procesamiento del CSV local: %s", e)
+        log.error("Falló la carga de pesos (%s): %s", fuente, e)
         return False
 
     payload = {
         "indice": TICKER_INDICE,
-        "fuente": fuente,
+        "fuente": fuente_payload,
         "fecha_actualizacion": datetime.now().isoformat(timespec="seconds"),
         "total_componentes": len(componentes),
         "componentes": componentes.to_dict(orient="records"),
     }
 
     try:
-        ARCHIVO_PESOS_BASE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        archivo_salida.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError as e:
-        log.error("No se pudo escribir el archivo base %s: %s", ARCHIVO_PESOS_BASE, e)
+        log.error("No se pudo escribir el archivo base %s: %s", archivo_salida, e)
         return False
 
-    log.info("Pesos guardados en %s (%s componentes).", ARCHIVO_PESOS_BASE, len(componentes))
+    log.info("Pesos guardados en %s (%s componentes).", archivo_salida, len(componentes))
     return True
 
 
@@ -244,10 +258,10 @@ def actualizar_pesos() -> bool:
 # actualizar_precios()
 # --------------------------------------------------------------------------
 
-def _cargar_componentes_base() -> pd.DataFrame:
-    if not ARCHIVO_PESOS_BASE.exists():
-        raise FileNotFoundError(f"No existe {ARCHIVO_PESOS_BASE}. Ejecutá actualizar_pesos() primero.")
-    data = json.loads(ARCHIVO_PESOS_BASE.read_text(encoding="utf-8"))
+def _cargar_componentes_base(archivo_base: Path = ARCHIVO_PESOS_BASE) -> pd.DataFrame:
+    if not archivo_base.exists():
+        raise FileNotFoundError(f"No existe {archivo_base}. Ejecutá actualizar_pesos() primero.")
+    data = json.loads(archivo_base.read_text(encoding="utf-8"))
     df = pd.DataFrame(data.get("componentes", []))
     if df.empty:
         raise ValueError("El archivo base no contiene componentes.")
@@ -390,7 +404,7 @@ def _variacion_desde_dias_atras(cierres: pd.Series, fecha_referencia: date, dias
     return round((precio_actual - precio_referencia) / precio_referencia * 100, 4)
 
 
-def actualizar_precios() -> bool:
+def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: Path = ARCHIVO_SALIDA) -> bool:
     """
     Toma los componentes guardados por actualizar_pesos(), descarga sus
     precios en UNA sola llamada batch a yfinance, valida que haya datos de
@@ -409,7 +423,7 @@ def actualizar_precios() -> bool:
     log.info("=== actualizar_precios: iniciando ===")
 
     try:
-        base = _cargar_componentes_base()
+        base = _cargar_componentes_base(archivo_base)
     except (FileNotFoundError, ValueError) as e:
         log.error(str(e))
         return False
@@ -493,14 +507,14 @@ def actualizar_precios() -> bool:
     }
 
     try:
-        ARCHIVO_SALIDA.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        archivo_salida.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError as e:
-        log.error("No se pudo escribir %s: %s", ARCHIVO_SALIDA, e)
+        log.error("No se pudo escribir %s: %s", archivo_salida, e)
         return False
 
     log.info(
         "Listo. %s componentes exportados a %s (%s con errores).",
-        len(filas), ARCHIVO_SALIDA, len(errores),
+        len(filas), archivo_salida, len(errores),
     )
     return True
 
@@ -515,21 +529,30 @@ def main() -> int:
         "modo",
         choices=["pesos", "precios", "todo"],
         help=(
-            "pesos: componentes + ponderaciones oficiales | "
+            "pesos: componentes + ponderaciones locales u oficiales | "
             "precios: precios batch + variación %% + impacto | "
             "todo: ambos pasos en secuencia"
         ),
     )
+    parser.add_argument("--output-dir", type=Path, default=DIRECTORIO_SCRIPT,
+                        help="Directorio para los JSON generados (por defecto: junto al script).")
+    parser.add_argument("--fuente-pesos", choices=["local", "oficial"], default="local",
+                        help="CSV local o composición diaria de State Street para pesos/todo.")
     args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    archivo_base = args.output_dir / ARCHIVO_PESOS_BASE.name
+    archivo_salida = args.output_dir / ARCHIVO_SALIDA.name
+    # precios puede usar la base incluida si aún no se generó una en la salida.
+    base_entrada = archivo_base if archivo_base.exists() else ARCHIVO_PESOS_BASE
 
     if args.modo == "pesos":
-        ok = actualizar_pesos()
+        ok = actualizar_pesos(archivo_base, args.fuente_pesos)
     elif args.modo == "precios":
-        ok = actualizar_precios()
+        ok = actualizar_precios(base_entrada, archivo_salida)
     else:  # todo
-        ok = actualizar_pesos()
+        ok = actualizar_pesos(archivo_base, args.fuente_pesos)
         if ok:
-            ok = actualizar_precios()
+            ok = actualizar_precios(archivo_base, archivo_salida)
         else:
             log.error("Se omite actualizar_precios() porque actualizar_pesos() falló.")
 

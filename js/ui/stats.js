@@ -6,7 +6,7 @@ import { formatPercent } from '../format.js';
 // acá, editando el array `items`.
 // ---------------------------------------------------------------------------
 
-export function renderStats(statsStrip, data) {
+export function renderStats(statsStrip, data, root = null) {
   statsStrip.replaceChildren();
   const up = data.filter(function (d) { return Number(d.variacion_diaria) > 0; }).length;
   const down = data.filter(function (d) { return Number(d.variacion_diaria) < 0; }).length;
@@ -18,6 +18,14 @@ export function renderStats(statsStrip, data) {
     { text: down + ' bajan', tone: 'loss' },
     { text: 'Impacto neto de ' + formatPercent(netImpact, true), tone: netImpact > 0 ? 'gain' : netImpact < 0 ? 'loss' : null },
   ];
+
+  const marketDate = root && root.fecha_datos_mercado;
+  if (marketDate && /^\d{4}-\d{2}-\d{2}$/.test(marketDate)) {
+    const [year, month, day] = marketDate.split('-');
+    items.push({ text: 'Datos de mercado: ' + day + '/' + month + '/' + year, tone: null });
+  } else {
+    items.push({ text: 'Fecha de mercado no disponible', tone: null });
+  }
 
   items.forEach(function (it, idx) {
     if (idx > 0) {

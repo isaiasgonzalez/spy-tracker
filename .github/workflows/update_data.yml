@@ -24,7 +24,10 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install yfinance pandas
+        run: pip install -r requirements.txt
+
+      - name: Pruebas del pipeline
+        run: python -m unittest discover -s tests -v
 
       - name: Ejecutar actualización de precios
         run: python script.py precios
