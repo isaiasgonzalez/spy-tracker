@@ -1,41 +1,61 @@
-name: Actualización de precios spy
-
+name: Actualización de precios SPY
 on:
   schedule:
-    - cron: '*/15 13-20 * * 1-5'
+    # Dos minutos después de cada cuarto de hora para evitar el pico de carga.
+    # La ventana UTC cubre EST y EDT; el calendario NYSE decide si consultar.
+    - cron: '2,17,32,47 13-20 * * 1-5'
   workflow_dispatch:
-
+  push:
+    branches: [main]
+    paths: [spy500.csv, SPY_componentes_base.json]
 permissions:
-  contents: write 
-
+  contents: write
+concurrency:
+  group: spy-data-main
+  cancel-in-progress: false
 jobs:
   update-prices:
-    name: Actualizar precios
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
-
-      - name: Configurar entorno Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Instalar dependencias
-        run: pip install -r requirements.txt
-
-      - name: Pruebas del pipeline
-        run: python -m unittest discover -s tests -v
-
-      - name: Ejecutar actualización de precios
-        run: python script.py precios
-
-      - name: Commit y push de SPY_data.json
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Calendario de mercado
+        run: pip install exchange-calendars==4.13.2
+      - name: Comprobar rueda (incluye feriados y cierres anticipados)
+        id: market
         run: |
+          echo "open=$(python market_hours.py)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Dependencias de precios
+        if: steps.market.outputs.open == 'true'
+        run: pip install -r requirements.txt
+      - uses: actions/cache@v4
+        if: steps.market.outputs.open == 'true'
+        with:
+          path: .price-cache
+          key: spy-references-${{ runner.os }}-${{ steps.market.outputs.date }}
+          restore-keys: spy-references-${{ runner.os }}-
+      - name: Actualizar precios solo mientras la rueda esté abierta
+        if: steps.market.outputs.open == 'true'
+        run: python script.py precios --solo-mercado-abierto
+      - name: Publicar únicamente si cambiaron los datos
+        if: steps.market.outputs.open == 'true'
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add SPY_data.json
-          git diff --staged --quiet && echo "sin cambios" || git commit -m "precios spy"
-          git push origin main
+          if git diff --staged --quiet; then
+            echo "Sin cambios; no se publica."
+            exit 0
+          fi
+          git commit -m "Actualizar precios SPY"
+          # Si otra actualización avanzó main, no sobrescribirla ni forzar push.
+          git push origin HEAD:main

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import io
 import json
 import logging
@@ -10,7 +11,11 @@ import time
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Optional
+
+from market_hours import market_is_open
+from weights import read_weights
 
 import pandas as pd
 import requests
@@ -44,6 +49,16 @@ PERIODO_DESCARGA_PRECIOS = "5d"  # margen para saltar fines de semana/feriados
 PERIODO_DESCARGA_PRECIOS_LARGO = "2y"
 DIAS_MES = 30
 DIAS_ANIO = 365
+SOLO_MERCADO_ABIERTO = False
+
+
+class MercadoCerrado(Exception):
+    pass
+
+
+def _comprobar_mercado():
+    if SOLO_MERCADO_ABIERTO and not market_is_open():
+        raise MercadoCerrado("La rueda cerró; no se iniciarán nuevas consultas.")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,31 +93,39 @@ def _descargar_texto(url: str, timeout: int = TIMEOUT_RED, intentos: int = MAX_R
 
 
 def _descargar_precios_batch(tickers: list[str]) -> pd.DataFrame:
-    """Una sola llamada batch a yfinance para todos los tickers, con reintentos básicos."""
-    ultimo_error: Optional[Exception] = None
-    for intento in range(1, MAX_REINTENTOS + 1):
-        try:
-            datos = yf.download(
-                tickers=tickers,
-                period=PERIODO_DESCARGA_PRECIOS,
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=False,
-                threads=True,
-                progress=False,
-                timeout=TIMEOUT_RED,
-            )
-            if datos is None or datos.empty:
-                raise ValueError("yfinance devolvió un DataFrame vacío.")
-            return datos
-        except Exception as e:  # noqa: BLE001 - cualquier falla de red/API dispara reintento
-            ultimo_error = e
-            log.warning(
-                "Descarga batch de precios falló (intento %s/%s): %s", intento, MAX_REINTENTOS, e
-            )
-            if intento < MAX_REINTENTOS:
-                time.sleep(ESPERA_ENTRE_REINTENTOS)
-    raise ConnectionError("No se pudieron descargar los precios tras varios intentos") from ultimo_error
+    """Concurrencia acotada; reintenta solo los símbolos sin cierres válidos."""
+    pendientes = list(dict.fromkeys(tickers))
+    resultados = {}
+    for intento in range(MAX_REINTENTOS):
+        fallidos = []
+        for inicio in range(0, len(pendientes), 40):
+            _comprobar_mercado()
+            lote = pendientes[inicio:inicio + 40]
+            try:
+                datos = yf.download(tickers=lote, period=PERIODO_DESCARGA_PRECIOS,
+                                    interval="1d", group_by="ticker", auto_adjust=False,
+                                    threads=8, progress=False, timeout=TIMEOUT_RED)
+            except Exception as exc:
+                log.warning("Falló un lote de precios: %s", exc)
+                fallidos.extend(lote)
+                continue
+            for ticker in lote:
+                try:
+                    frame = datos[ticker] if isinstance(datos.columns, pd.MultiIndex) else datos
+                    if "Close" not in frame or len(frame["Close"].dropna()) < 2:
+                        raise ValueError("Sin cierres suficientes")
+                    resultados[ticker] = frame
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    fallidos.append(ticker)
+        pendientes = fallidos
+        if not pendientes:
+            break
+        if intento + 1 < MAX_REINTENTOS:
+            _comprobar_mercado()
+            time.sleep(ESPERA_ENTRE_REINTENTOS * (2 ** intento))
+    if not resultados:
+        raise ConnectionError("No se pudieron descargar precios válidos.")
+    return pd.concat(resultados, axis=1)
 
 
 # --------------------------------------------------------------------------
@@ -229,7 +252,7 @@ def actualizar_pesos(archivo_salida: Path = ARCHIVO_PESOS_BASE, fuente: str = "l
             fuente_payload = "ssga_oficial"
         else:
             archivo_csv = DIRECTORIO_SCRIPT / "spy500.csv"
-            componentes = _parsear_csv_holdings(archivo_csv.read_text(encoding="utf-8"))
+            componentes = pd.DataFrame(read_weights(archivo_csv.read_text(encoding="utf-8-sig")))
             fuente_payload = "csv_local_100"
         log.info("Se obtuvieron %s componentes desde la fuente %s.", len(componentes), fuente)
     except Exception as e:
@@ -245,7 +268,9 @@ def actualizar_pesos(archivo_salida: Path = ARCHIVO_PESOS_BASE, fuente: str = "l
     }
 
     try:
-        archivo_salida.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporal = archivo_salida.with_suffix(".tmp")
+        temporal.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporal.replace(archivo_salida)
     except OSError as e:
         log.error("No se pudo escribir el archivo base %s: %s", archivo_salida, e)
         return False
@@ -324,7 +349,7 @@ def _procesar_componente(ticker: str, historial: pd.DataFrame, fecha_mercado: da
 
     precio_actual = float(cierres.iloc[-1])
     precio_anterior = float(cierres.iloc[-2])
-    if precio_anterior == 0:
+    if not math.isfinite(precio_actual) or not math.isfinite(precio_anterior) or precio_anterior <= 0 or precio_actual <= 0:
         return None
 
     variacion_pct = (precio_actual - precio_anterior) / precio_anterior * 100
@@ -347,6 +372,7 @@ def _descargar_historico_largo(ticker: str) -> Optional[pd.Series]:
     pipeline: variación mensual/anual son "nice to have", no el dato
     principal.
     """
+    _comprobar_mercado()
     try:
         datos = yf.download(
             tickers=ticker,
@@ -404,10 +430,34 @@ def _variacion_desde_dias_atras(cierres: pd.Series, fecha_referencia: date, dias
     return round((precio_actual - precio_referencia) / precio_referencia * 100, 4)
 
 
+def _referencias_periodos(fecha_mercado: date, archivo: Path) -> dict:
+    if archivo.exists():
+        try:
+            cache = json.loads(archivo.read_text(encoding="utf-8"))
+            if cache.get("fecha") == fecha_mercado.isoformat():
+                return cache
+        except (OSError, ValueError):
+            pass
+    cierres = _descargar_historico_largo(TICKER_INDICE)
+    referencias = {"fecha": fecha_mercado.isoformat()}
+    if cierres is None or cierres.empty:
+        return referencias
+    for key, days in (("mes", DIAS_MES), ("anio", DIAS_ANIO)):
+        previos = cierres.loc[cierres.index.date <= fecha_mercado - timedelta(days=days)]
+        if not previos.empty and math.isfinite(float(previos.iloc[-1])) and float(previos.iloc[-1]) > 0:
+            referencias[key] = float(previos.iloc[-1])
+    if "mes" in referencias and "anio" in referencias:
+        archivo.parent.mkdir(parents=True, exist_ok=True)
+        temporal = archivo.with_suffix(".tmp")
+        temporal.write_text(json.dumps(referencias), encoding="utf-8")
+        temporal.replace(archivo)
+    return referencias
+
+
 def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: Path = ARCHIVO_SALIDA) -> bool:
     """
     Toma los componentes guardados por actualizar_pesos(), descarga sus
-    precios en UNA sola llamada batch a yfinance, valida que haya datos de
+    precios en lotes con concurrencia acotada y valida que haya datos de
     una sesión de mercado real (no stale/sin operar) y calcula:
 
       - variacion_pct: variación % del precio de cierre respecto al cierre
@@ -432,9 +482,11 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
     # Se agrega el propio índice como referencia adicional para validar la sesión de mercado
     tickers_a_pedir = list(dict.fromkeys(tickers + [TICKER_INDICE]))
 
-    log.info("Descargando precios de %s tickers en una sola llamada batch...", len(tickers_a_pedir))
+    log.info("Descargando precios de %s tickers en lotes de hasta 40...", len(tickers_a_pedir))
     try:
         historial = _descargar_precios_batch(tickers_a_pedir)
+    except MercadoCerrado:
+        raise
     except Exception as e:  # noqa: BLE001 - fallo de red/API ya reintentado en _descargar_precios_batch
         log.error("Fallo de red/API al descargar precios: %s", e)
         return False
@@ -444,8 +496,11 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
         log.error("No se pudo determinar una sesión de mercado válida en los datos descargados.")
         return False
 
-    hoy = datetime.now().date()
+    hoy = datetime.now(ZoneInfo("America/New_York")).date()
     mercado_operado_hoy = fecha_mercado == hoy
+    if SOLO_MERCADO_ABIERTO and not mercado_operado_hoy:
+        log.error("No se publica: Yahoo aún no devolvió datos de la sesión actual.")
+        return False
     if not mercado_operado_hoy:
         log.warning(
             "Los datos más recientes corresponden al %s, no a hoy (%s). Puede ser fin de "
@@ -486,12 +541,21 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
     datos_indice = _procesar_componente(TICKER_INDICE, historial, fecha_mercado)
     var_real_SPY = datos_indice["variacion_pct"] if datos_indice else None
 
-    # Variación mensual/anual: histórico aparte, solo del índice. Si falla
-    # (red, ticker sin suficiente historia, etc.) quedan en None y el
-    # frontend ya sabe mostrar "—" en vez de romper.
-    cierres_largos = _descargar_historico_largo(TICKER_INDICE)
-    var_mensual_SPY = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_MES)
-    var_anual_SPY = _variacion_desde_dias_atras(cierres_largos, fecha_mercado, DIAS_ANIO)
+    peso_total = sum(float(c["peso_pct"]) for _, c in base.iterrows())
+    peso_valido = sum(r["peso_pct"] for r in filas)
+    if datos_indice is None or peso_total <= 0 or peso_valido / peso_total < 0.95:
+        log.error("No se publica: falta SPY o la cobertura por peso es inferior al 95%.")
+        return False
+
+    # Las referencias históricas cambian una vez por sesión; el precio actual
+    # siempre viene del mismo batch usado para la variación diaria.
+    referencias = _referencias_periodos(fecha_mercado, archivo_salida.parent / ".price-cache" / "SPY_referencias.json")
+    precio_indice = datos_indice["precio_actual"] if datos_indice else None
+    def variacion(ref):
+        valor = referencias.get(ref)
+        return round((precio_indice - valor) / valor * 100, 4) if precio_indice and valor else None
+    var_mensual_SPY = variacion("mes")
+    var_anual_SPY = variacion("anio")
 
     payload = {
         "indice": TICKER_INDICE,
@@ -501,13 +565,24 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
         "variacion_real_SPY": var_real_SPY,
         "variacion_mensual_SPY": var_mensual_SPY,
         "variacion_anual_SPY": var_anual_SPY,
+        "cobertura_peso_pct": round(peso_valido, 4),
         "total_componentes": len(filas),
         "componentes": filas,
         "errores": errores,
     }
 
+    if archivo_salida.exists():
+        anterior = json.loads(archivo_salida.read_text(encoding="utf-8"))
+        relevantes = {k: v for k, v in payload.items() if k != "fecha_actualizacion"}
+        previos = {k: v for k, v in anterior.items() if k != "fecha_actualizacion"}
+        if relevantes == previos:
+            log.info("Sin cambios de mercado; no se reescribe el JSON.")
+            return True
+
     try:
-        archivo_salida.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporal = archivo_salida.with_suffix(".tmp")
+        temporal.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporal.replace(archivo_salida)
     except OSError as e:
         log.error("No se pudo escribir %s: %s", archivo_salida, e)
         return False
@@ -534,11 +609,17 @@ def main() -> int:
             "todo: ambos pasos en secuencia"
         ),
     )
+    parser.add_argument("--solo-mercado-abierto", action="store_true", help="No consultar precios fuera de la rueda NYSE.")
     parser.add_argument("--output-dir", type=Path, default=DIRECTORIO_SCRIPT,
                         help="Directorio para los JSON generados (por defecto: junto al script).")
     parser.add_argument("--fuente-pesos", choices=["local", "oficial"], default="local",
                         help="CSV local o composición diaria de State Street para pesos/todo.")
     args = parser.parse_args()
+    global SOLO_MERCADO_ABIERTO
+    SOLO_MERCADO_ABIERTO = args.solo_mercado_abierto
+    if SOLO_MERCADO_ABIERTO and args.modo != "pesos" and not market_is_open():
+        log.info("NYSE cerrado: no se consultan precios.")
+        return 0
     args.output_dir.mkdir(parents=True, exist_ok=True)
     archivo_base = args.output_dir / ARCHIVO_PESOS_BASE.name
     archivo_salida = args.output_dir / ARCHIVO_SALIDA.name
@@ -562,6 +643,9 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
+    except MercadoCerrado as exc:
+        log.info(str(exc))
+        sys.exit(0)
     except Exception:  # noqa: BLE001 - red de seguridad final para errores no previstos
         log.exception("Error inesperado no manejado.")
         sys.exit(1)

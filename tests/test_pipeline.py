@@ -55,7 +55,7 @@ class PipelineTests(unittest.TestCase):
             output = Path(temp) / 'prices.json'
             base.write_text(json.dumps({'componentes': [
                 {'ticker': 'AAPL', 'nombre': 'Apple', 'peso_pct': 7},
-                {'ticker': 'MISSING', 'nombre': 'Missing', 'peso_pct': 1}]}))
+                {'ticker': 'MISSING', 'nombre': 'Missing', 'peso_pct': .1}]}))
             with patch.object(script, '_descargar_precios_batch', return_value=self.history()), \
                  patch.object(script, '_descargar_historico_largo', return_value=None):
                 self.assertTrue(script.actualizar_precios(base, output))

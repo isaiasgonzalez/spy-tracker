@@ -23,7 +23,7 @@ const captureBtnLabel = document.getElementById('btn-captura-label');
 const searchInput = document.getElementById('input-buscar-ticker');
 
 // Requisito 6: leyenda fija en el pie de página.
-footerLegend.textContent = 'Datos diferidos 30 min - Solo con fines informativos - x.com/isaias3g';
+footerLegend.textContent = 'Datos de Yahoo Finance; pueden tener demora - Solo con fines informativos - x.com/isaias3g';
 
 initCapture(captureBtn, captureBtnLabel);
 initSearch(searchInput, function () { sortAndRenderTable(container); });
