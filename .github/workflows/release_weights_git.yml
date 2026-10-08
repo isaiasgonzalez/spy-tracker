@@ -1,0 +1,31 @@
+name: Publicar lanzador de pesos con Git
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Actualizar-Pesos-Git
+      - install_pesos_git.sh
+      - PESOS-GIT.md
+      - .github/workflows/release_weights_git.yml
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar y empaquetar
+        run: |
+          bash -n Actualizar-Pesos-Git install_pesos_git.sh
+          chmod +x Actualizar-Pesos-Git install_pesos_git.sh
+          tar -czf SPY-Pesos-Git-Linux.tar.gz Actualizar-Pesos-Git install_pesos_git.sh PESOS-GIT.md
+      - name: Publicar descarga
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="pesos-git-${GITHUB_SHA:0:7}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Pesos con Python y Git (${GITHUB_SHA:0:7})" --notes "Nuevo lanzador independiente. Ejecuta script.py pesos y publica con Git usando una copia local del repositorio. Requiere Python con requirements.txt y Git autenticado." --latest
+          fi
+          gh release upload "$tag" SPY-Pesos-Git-Linux.tar.gz --clobber
