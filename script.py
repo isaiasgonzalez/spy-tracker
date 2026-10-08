@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import argparse
-import math
 import io
 import json
 import logging
+import math
 import sys
 import time
 from collections import Counter
@@ -14,7 +14,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from typing import Optional
 
-from market_hours import market_is_open
 from weights import read_weights
 
 import pandas as pd
@@ -56,8 +55,15 @@ class MercadoCerrado(Exception):
     pass
 
 
-def _comprobar_mercado():
-    if SOLO_MERCADO_ABIERTO and not market_is_open():
+def _mercado_esta_abierto() -> bool:
+    """Carga el calendario NYSE sólo cuando un modo de precios lo necesita."""
+    from market_hours import market_is_open
+
+    return market_is_open()
+
+
+def _comprobar_mercado() -> None:
+    if SOLO_MERCADO_ABIERTO and not _mercado_esta_abierto():
         raise MercadoCerrado("La rueda cerró; no se iniciarán nuevas consultas.")
 
 logging.basicConfig(
@@ -617,7 +623,7 @@ def main() -> int:
     args = parser.parse_args()
     global SOLO_MERCADO_ABIERTO
     SOLO_MERCADO_ABIERTO = args.solo_mercado_abierto
-    if SOLO_MERCADO_ABIERTO and args.modo != "pesos" and not market_is_open():
+    if SOLO_MERCADO_ABIERTO and args.modo != "pesos" and not _mercado_esta_abierto():
         log.info("NYSE cerrado: no se consultan precios.")
         return 0
     args.output_dir.mkdir(parents=True, exist_ok=True)
