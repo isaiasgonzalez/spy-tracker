@@ -72,3 +72,5 @@ No publica si falta SPY o la cobertura es inferior al 95% del peso de la base.
 Preserva el último archivo válido y escribe mediante reemplazo atómico.
 Los datos sin cambios no producen commits por el mero paso del tiempo.
 Actions conserva la caché de referencias diarias y evita ejecuciones simultáneas.
+Los tickers omitidos se informan sólo en una terminal local interactiva y no se
+incluyen en `SPY_data.json` ni en la interfaz pública.

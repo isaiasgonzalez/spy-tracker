@@ -4969,35 +4969,5 @@
       "volumen": 1723535
     }
   ],
-  "errores": [
-    {
-      "ticker": "BE",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "WBD",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "P",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "VYLR",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "TWLO",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "ILMN",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    },
-    {
-      "ticker": "SKYD",
-      "motivo": "pendiente de precios con los nuevos pesos"
-    }
-  ],
   "cobertura_peso_pct": 99.26
 }

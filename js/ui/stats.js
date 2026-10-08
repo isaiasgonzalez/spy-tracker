@@ -28,9 +28,6 @@ export function renderStats(statsStrip, data, root = null) {
   ];
 
   const marketDate = root && root.fecha_datos_mercado;
-  if (root && Array.isArray(root.errores) && root.errores.length) {
-    items.push({ text: root.errores.length + ' acciones sin datos válidos', tone: null });
-  }
   if (marketDate && /^\d{4}-\d{2}-\d{2}$/.test(marketDate)) {
     const [year, month, day] = marketDate.split('-');
     items.push({ text: 'Datos de mercado: ' + day + '/' + month + '/' + year, tone: null });

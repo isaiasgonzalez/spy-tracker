@@ -474,6 +474,15 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
         log.error("No se pudo calcular ningún componente. Se aborta la exportación.")
         return False
 
+    # El detalle es diagnóstico local: no se serializa ni se imprime en CI.
+    if errores and sys.stderr.isatty():
+        tickers_omitidos = ", ".join(error["ticker"] for error in errores)
+        log.warning(
+            "Componentes omitidos por falta de datos válidos (%s): %s",
+            len(errores),
+            tickers_omitidos,
+        )
+
     filas.sort(key=lambda r: r["peso_pct"], reverse=True)
 
     datos_indice = _procesar_componente(TICKER_INDICE, historial, fecha_mercado)
@@ -506,7 +515,6 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
         "cobertura_peso_pct": round(peso_valido, 4),
         "total_componentes": len(filas),
         "componentes": filas,
-        "errores": errores,
     }
 
     if archivo_salida.exists():
@@ -525,10 +533,7 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
         log.error("No se pudo escribir %s: %s", archivo_salida, e)
         return False
 
-    log.info(
-        "Listo. %s componentes exportados a %s (%s con errores).",
-        len(filas), archivo_salida, len(errores),
-    )
+    log.info("Listo. %s componentes exportados a %s.", len(filas), archivo_salida)
     return True
 
 

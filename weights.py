@@ -84,11 +84,11 @@ def weights_payload(items: list[WeightItem]) -> dict[str, Any]:
 
 def apply_weights(feed: dict[str, Any], items: list[WeightItem]) -> dict[str, Any]:
     updated = dict(feed)
+    updated.pop('errores', None)
     old = {r['ticker']: r for r in feed['componentes']}
-    rows, missing = [], []
+    rows = []
     for item in items:
         if item['ticker'] not in old:
-            missing.append({'ticker': item['ticker'], 'motivo': 'pendiente de precios con los nuevos pesos'})
             continue
         row = dict(old[item['ticker']])
         row.update(item)
@@ -97,7 +97,6 @@ def apply_weights(feed: dict[str, Any], items: list[WeightItem]) -> dict[str, An
     updated.update(
         componentes=rows,
         total_componentes=len(rows),
-        errores=missing,
         cobertura_peso_pct=round(sum(r['peso_pct'] for r in rows), 4),
     )
     return updated
