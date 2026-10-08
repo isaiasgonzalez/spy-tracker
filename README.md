@@ -10,7 +10,6 @@ Usar Python 3.11:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m unittest discover -s tests -v
 python -m http.server 8000 --bind 127.0.0.1
 ```
 
@@ -37,43 +36,9 @@ acceso HTTPS a `www.ssga.com`; los precios requieren Yahoo Finance.
 Las pruebas usan datos controlados y no requieren red. Una falla de red no
 debe interpretarse como una validación exitosa del actualizador.
 
-## Tu CSV y el ejecutable en CachyOS
-
-Los pesos son tuyos: no se reemplazan automáticamente por una fuente externa.
-Descargá `SPY-Pesos-Linux.tar.gz` desde Releases, extraelo en una carpeta y ejecutá:
-
-```sh
-bash install_launcher.sh
-```
-
-Luego abrí `Actualizar-pesos.desktop` (en KDE puede ser necesario marcarlo como
-confiable). El lanzador abre una terminal y un selector de archivos mediante
-`kdialog` o `zenity`; si no están instalados, pide la ruta del CSV.
-El ejecutable no requiere Python ni Git instalados.
-
-Usá un token fine-grained de GitHub, limitado a este repositorio, con permiso
-**Contents: Read and write**. Lo pide con entrada oculta y no lo guarda.
-También admite `SPY_GITHUB_TOKEN` si ya lo administrás en tu sistema.
-No pegues tokens en el CSV ni en el repositorio.
-
-El CSV acepta `Symbol`/`Ticker`, `Company`/`Name` y `Weight`; los pesos se expresan
-como porcentajes (7.06 significa 7.06%). Verifica duplicados, valores inválidos,
-composición completa y suma entre 95% y 105%. Omite futuros (`=F`) y posiciones
-con peso cero. Publica CSV, base de pesos y dashboard en un solo commit sobre
-`main`, sin forzar cambios concurrentes. Si otro proceso actualizó `main`,
-repetí la operación. Si los pesos ya coinciden, no crea un commit.
-
-Recalcula los impactos con los precios existentes, conserva su fecha de mercado
-y registra los símbolos nuevos sin precio. Durante la rueda, el push de pesos
-activa una actualización de precios; fuera de la rueda espera a la siguiente.
-La publicación en GitHub activa el despliegue solo si tu hosting ya está
-conectado al repositorio; la herramienta no configura el hosting.
-
-Para validar sin publicar:
-
-```sh
-./SPY-Pesos --csv /ruta/tus-pesos.csv --dry-run
-```
+`spy500.csv` y las herramientas personales de publicación se mantienen fuera del
+repositorio. Los pesos procesados se publican en `SPY_componentes_base.json` y el
+dashboard consume solamente `SPY_data.json`.
 
 ## Actualización automática de precios
 
@@ -97,4 +62,3 @@ No publica si falta SPY o la cobertura es inferior al 95% del peso de la base.
 Preserva el último archivo válido y escribe mediante reemplazo atómico.
 Los datos sin cambios no producen commits por el mero paso del tiempo.
 Actions conserva la caché de referencias diarias y evita ejecuciones simultáneas.
-Las pruebas se ejecutan en un workflow separado cuando cambia el código.

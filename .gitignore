@@ -5,3 +5,18 @@ __pycache__/
 build/
 dist/
 *.spec
+
+# Fuente privada de pesos y herramientas locales de publicación.
+/spy500.csv
+/SPY-Pesos-Git-Linux/
+/Actualizar-Pesos-Git
+/PESOS-GIT.md
+/install_pesos_git.sh
+/install_launcher.sh
+/launch_weights.sh
+/update_weights.py
+/build-requirements.txt
+/tests/
+/.github/workflows/build_weights.yml
+/.github/workflows/release_weights_git.yml
+/.github/workflows/tests.yml
