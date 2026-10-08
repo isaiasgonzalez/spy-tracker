@@ -8,27 +8,38 @@
 // Acepta tanto los nombres de campo del JSON de ejemplo (variacion_diaria,
 // impacto_SPY) como los que use una fuente real distinta (variacion_pct,
 // impacto_indice_pct, peso_pct), para no depender de una convención exacta.
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
+function toNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function normalizeItem(item) {
   return {
-    ticker: item.ticker,
-    nombre: item.nombre,
-    peso: item.peso !== undefined ? item.peso : item.peso_pct,
-    variacion_diaria: item.variacion_pct !== undefined ? item.variacion_pct : item.variacion_diaria,
-    impacto_SPY: item.impacto_indice_pct !== undefined ? item.impacto_indice_pct : item.impacto_SPY,
+    ticker: String(item.ticker ?? '').trim().toUpperCase(),
+    nombre: String(item.nombre ?? ''),
+    peso: toNumber(firstDefined(item.peso, item.peso_pct)),
+    variacion_diaria: toNumber(firstDefined(item.variacion_pct, item.variacion_diaria)),
+    impacto_SPY: toNumber(firstDefined(item.impacto_indice_pct, item.impacto_SPY)),
   };
 }
 
 // Acepta un array plano, { componentes: [...] } (formato de script.py) o
 // { constituyentes: [...] }.
 export function normalizeFeed(json) {
-  if (Array.isArray(json)) {
-    return { items: json.map(normalizeItem), root: null };
+  const root = Array.isArray(json) ? null : json;
+  const source = Array.isArray(json)
+    ? json
+    : firstDefined(json?.componentes, json?.constituyentes);
+
+  if (!Array.isArray(source)) {
+    throw new TypeError('Se esperaba un array, o un objeto con "componentes" o "constituyentes".');
   }
-  if (json && Array.isArray(json.componentes)) {
-    return { items: json.componentes.map(normalizeItem), root: json };
-  }
-  if (json && Array.isArray(json.constituyentes)) {
-    return { items: json.constituyentes.map(normalizeItem), root: json };
-  }
-  throw new Error('Se esperaba un array, o un objeto con "componentes" o "constituyentes".');
+
+  const items = source.map(normalizeItem).filter((item) => item.ticker);
+  return { items, root };
 }

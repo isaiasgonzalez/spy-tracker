@@ -8,15 +8,23 @@ import { formatPercent } from '../format.js';
 
 export function renderStats(statsStrip, data, root = null) {
   statsStrip.replaceChildren();
-  const up = data.filter(function (d) { return Number(d.variacion_diaria) > 0; }).length;
-  const down = data.filter(function (d) { return Number(d.variacion_diaria) < 0; }).length;
-  const netImpact = data.reduce(function (sum, d) { return sum + Number(d.impacto_SPY || 0); }, 0);
+  const summary = data.reduce((result, item) => {
+    const variation = Number(item.variacion_diaria);
+    const impact = Number(item.impacto_SPY);
+    if (variation > 0) result.up += 1;
+    if (variation < 0) result.down += 1;
+    if (Number.isFinite(impact)) result.netImpact += impact;
+    return result;
+  }, { up: 0, down: 0, netImpact: 0 });
 
   const items = [
     { text: data.length + ' acciones', tone: null },
-    { text: up + ' suben', tone: 'gain' },
-    { text: down + ' bajan', tone: 'loss' },
-    { text: 'Impacto neto de ' + formatPercent(netImpact, true), tone: netImpact > 0 ? 'gain' : netImpact < 0 ? 'loss' : null },
+    { text: summary.up + ' suben', tone: 'gain' },
+    { text: summary.down + ' bajan', tone: 'loss' },
+    {
+      text: 'Impacto neto de ' + formatPercent(summary.netImpact, true),
+      tone: summary.netImpact > 0 ? 'gain' : summary.netImpact < 0 ? 'loss' : null,
+    },
   ];
 
   const marketDate = root && root.fecha_datos_mercado;

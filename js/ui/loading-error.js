@@ -5,6 +5,7 @@
 
 export function renderLoading(container, statsStrip) {
   statsStrip.classList.add('hidden');
+  container.setAttribute('aria-busy', 'true');
   container.replaceChildren();
   const wrap = document.createElement('div');
   wrap.className = 'flex items-center justify-center gap-3 py-16 text-[var(--ink-700)]';
@@ -19,6 +20,7 @@ export function renderLoading(container, statsStrip) {
 
 export function renderError(container, statsStrip, err) {
   statsStrip.classList.add('hidden');
+  container.setAttribute('aria-busy', 'false');
   container.replaceChildren();
   const wrap = document.createElement('div');
   wrap.className = 'px-6 py-14 text-center';
@@ -27,7 +29,7 @@ export function renderError(container, statsStrip, err) {
   title.textContent = 'No se pudieron cargar los datos.';
   const detail = document.createElement('p');
   detail.className = 'font-data text-xs text-[var(--ink-700)] mt-3 max-w-md mx-auto leading-relaxed';
-  detail.textContent = 'Verificá que "SPY_data.json" esté junto a este archivo y que lo estés sirviendo desde un servidor local (no abierto como file://). Detalle: ' + err.message;
+  detail.textContent = `Verificá que "SPY_data.json" esté disponible y que la página se sirva por HTTP. Detalle: ${err.message}`;
   wrap.append(title, detail);
   container.appendChild(wrap);
 }

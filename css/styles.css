@@ -11,17 +11,30 @@
   --loss: #AE2E22;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   background-color: var(--paper);
   color: var(--ink-950);
   font-family: 'IBM Plex Sans', sans-serif;
 }
 
-.font-display { font-family: 'Fraunces', serif; }
-.font-data { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+.font-display {
+  font-family: 'Fraunces', serif;
+}
+
+.font-data {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Triángulos de suba/baja usados en la tabla y en la tarjeta de captura. */
-.tri-up, .tri-down {
+.tri-up,
+.tri-down {
   display: inline-block;
   width: 0;
   height: 0;
@@ -30,11 +43,20 @@ body {
   margin-right: 5px;
   vertical-align: middle;
 }
-.tri-up { border-bottom: 6px solid currentColor; margin-bottom: 1px; }
-.tri-down { border-top: 6px solid currentColor; margin-top: 1px; }
+.tri-up {
+  border-bottom: 6px solid currentColor;
+  margin-bottom: 1px;
+}
+
+.tri-down {
+  border-top: 6px solid currentColor;
+  margin-top: 1px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }

@@ -14,45 +14,61 @@ import { initSearch } from './ui/search.js';
 // agregás una feature nueva, se conecta acá con 1-2 líneas.
 // ---------------------------------------------------------------------------
 
-const container = document.getElementById('state-container');
-const statsStrip = document.getElementById('stats-strip');
-const indexPerformanceEl = document.getElementById('index-performance');
-const footerLegend = document.getElementById('footer-legend');
-const captureBtn = document.getElementById('btn-captura');
-const captureBtnLabel = document.getElementById('btn-captura-label');
-const searchInput = document.getElementById('input-buscar-ticker');
+function getRequiredElement(id) {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`No se encontró el elemento #${id}.`);
+  return element;
+}
+
+const elements = {
+  container: getRequiredElement('state-container'),
+  stats: getRequiredElement('stats-strip'),
+  performance: getRequiredElement('index-performance'),
+  footer: getRequiredElement('footer-legend'),
+  captureButton: getRequiredElement('btn-captura'),
+  captureLabel: getRequiredElement('btn-captura-label'),
+  search: getRequiredElement('input-buscar-ticker'),
+};
 
 // Requisito 6: leyenda fija en el pie de página.
-footerLegend.textContent = 'Datos de Yahoo Finance; pueden tener demora - Solo con fines informativos - x.com/isaias3g';
+elements.footer.textContent = 'Datos de Yahoo Finance; pueden tener demora - Solo con fines informativos - x.com/isaias3g';
 
-initCapture(captureBtn, captureBtnLabel);
-initSearch(searchInput, function () { sortAndRenderTable(container); });
+initCapture(elements.captureButton, elements.captureLabel);
+initSearch(elements.search, () => sortAndRenderTable(elements.container));
 
-init();
+loadDashboard();
 
-async function init() {
-  renderLoading(container, statsStrip);
-  indexPerformanceEl.classList.add('hidden');
-  captureBtn.disabled = true;
-  searchInput.disabled = true;
+async function fetchFeed() {
+  const response = await fetch(DATA_URL, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function setControlsEnabled(enabled) {
+  elements.captureButton.disabled = !enabled;
+  elements.search.disabled = !enabled;
+}
+
+async function loadDashboard() {
+  renderLoading(elements.container, elements.stats);
+  elements.performance.classList.add('hidden');
+  setControlsEnabled(false);
+
   try {
-    const res = await fetch(DATA_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    const normalized = normalizeFeed(json);
-    state.rawData = normalized.items;
-    state.rootData = normalized.root;
-    renderStats(statsStrip, state.rawData, state.rootData);
-    renderIndexPerformance(indexPerformanceEl, {
+    const { items, root } = normalizeFeed(await fetchFeed());
+    state.rawData = items;
+    state.rootData = root;
+    renderStats(elements.stats, items, root);
+    renderIndexPerformance(elements.performance, {
       daily: getSPYTotal(),
       monthly: getMonthlyTotal(),
       yearly: getYearlyTotal(),
     });
-    sortAndRenderTable(container);
-    captureBtn.disabled = false;
-    searchInput.disabled = false;
+    sortAndRenderTable(elements.container);
+    setControlsEnabled(true);
   } catch (err) {
-    renderError(container, statsStrip, err);
-    indexPerformanceEl.classList.add('hidden');
+    const error = err instanceof Error ? err : new Error(String(err));
+    renderError(elements.container, elements.stats, error);
+    elements.performance.classList.add('hidden');
   }
 }

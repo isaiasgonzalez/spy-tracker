@@ -9,7 +9,7 @@ import math
 import sys
 import time
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from typing import Optional
@@ -77,26 +77,6 @@ log = logging.getLogger("SPY_pipeline")
 # --------------------------------------------------------------------------
 # Utilidades de red
 # --------------------------------------------------------------------------
-
-def _descargar_texto(url: str, timeout: int = TIMEOUT_RED, intentos: int = MAX_REINTENTOS) -> str:
-    """Descarga el contenido de una URL como texto, con reintentos básicos ante fallos de red."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-    }
-    ultimo_error: Optional[Exception] = None
-    for intento in range(1, intentos + 1):
-        try:
-            resp = requests.get(url, headers=headers, timeout=timeout)
-            resp.raise_for_status()
-            return resp.text
-        except requests.exceptions.RequestException as e:
-            ultimo_error = e
-            log.warning("Descarga de %s falló (intento %s/%s): %s", url, intento, intentos, e)
-            if intento < intentos:
-                time.sleep(ESPERA_ENTRE_REINTENTOS)
-    raise ConnectionError(f"No se pudo descargar {url} tras {intentos} intentos") from ultimo_error
-
 
 def _descargar_precios_batch(tickers: list[str]) -> pd.DataFrame:
     """Concurrencia acotada; reintenta solo los símbolos sin cierres válidos."""
@@ -188,45 +168,16 @@ def _parsear_csv_holdings(contenido: str) -> pd.DataFrame:
     pesos_limpios = df[col_peso].astype(str).str.replace("%", "", regex=False).str.strip()
 
     salida = pd.DataFrame({
-        "ticker": df[col_ticker].astype(str).str.strip().str.upper(),
-        "nombre": df[col_nombre].astype(str).str.strip() if col_nombre else "",
+        "ticker": df[col_ticker],
+        "nombre": df[col_nombre].fillna("").astype(str).str.strip() if col_nombre else "",
         "peso_pct": _normalizar_a_porcentaje(pesos_limpios),
     })
 
     salida = salida.dropna(subset=["ticker", "peso_pct"])
+    salida["ticker"] = salida["ticker"].astype(str).str.strip().str.upper()
     salida = salida[salida["ticker"].str.match(r"^[A-Z][A-Z.\-]{0,9}$")]
     salida["ticker"] = salida["ticker"].str.replace(".", "-", regex=False)
 
-    return salida.sort_values("peso_pct", ascending=False).reset_index(drop=True)
-
-
-def _pesos_desde_yfinance_top10(ticker_fondo: str = TICKER_INDICE) -> pd.DataFrame:
-    """
-    Fallback: trae el Top 10 de holdings del fondo vía yfinance.
-
-    Yahoo Finance sólo expone el Top 10 de un ETF (no la lista completa),
-    así que este camino nunca cubre el 100% de los componentes del SPY,
-    pero permite que el pipeline funcione sin depender de una URL externa.
-    """
-    fondo = yf.Ticker(ticker_fondo)
-    top10 = fondo.funds_data.top_holdings
-    if top10 is None or top10.empty:
-        raise ValueError("yfinance no devolvió holdings para el fondo.")
-
-    df = top10.copy()
-    df.columns = [str(c).strip().lower() for c in df.columns]
-    col_nombre = "name" if "name" in df.columns else None
-    col_peso = next((c for c in df.columns if "percent" in c or "weight" in c), None)
-    if col_peso is None:
-        raise ValueError("No se encontró una columna de ponderación en el top_holdings de yfinance.")
-
-    salida = pd.DataFrame({
-        "ticker": [str(i).strip().upper() for i in df.index],
-        "nombre": df[col_nombre].astype(str).str.strip() if col_nombre else "",
-        "peso_pct": _normalizar_a_porcentaje(df[col_peso]),
-    })
-    salida["ticker"] = salida["ticker"].str.replace(".", "-", regex=False)
-    salida = salida.dropna(subset=["ticker", "peso_pct"])
     return salida.sort_values("peso_pct", ascending=False).reset_index(drop=True)
 
 
@@ -268,7 +219,7 @@ def actualizar_pesos(archivo_salida: Path = ARCHIVO_PESOS_BASE, fuente: str = "l
     payload = {
         "indice": TICKER_INDICE,
         "fuente": fuente_payload,
-        "fecha_actualizacion": datetime.now().isoformat(timespec="seconds"),
+        "fecha_actualizacion": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "total_componentes": len(componentes),
         "componentes": componentes.to_dict(orient="records"),
     }
@@ -344,14 +295,20 @@ def _procesar_componente(ticker: str, historial: pd.DataFrame, fecha_mercado: da
     if len(cierres) < 2:
         return None  # no hay cierre anterior para calcular variación
 
+    fecha_cierre = cierres.index[-1]
     volumen_serie = _serie(historial, ticker, "Volume")
     volumen = None
     if volumen_serie is not None:
-        volumen_serie = volumen_serie.dropna()
-        if not volumen_serie.empty:
-            volumen = int(volumen_serie.iloc[-1])
-            if volumen <= 0:
-                return None  # sin volumen operado: sesión inválida para este activo
+        if fecha_cierre not in volumen_serie.index:
+            return None
+        valor_volumen = volumen_serie.loc[fecha_cierre]
+        if isinstance(valor_volumen, pd.Series):
+            valor_volumen = valor_volumen.iloc[-1]
+        if pd.isna(valor_volumen):
+            return None
+        volumen = int(valor_volumen)
+        if volumen <= 0:
+            return None  # sin volumen operado: sesión inválida para este activo
 
     precio_actual = float(cierres.iloc[-1])
     precio_anterior = float(cierres.iloc[-2])
@@ -373,7 +330,7 @@ def _descargar_historico_largo(ticker: str) -> Optional[pd.Series]:
     Descarga histórico largo (PERIODO_DESCARGA_PRECIOS_LARGO) de un solo
     ticker, para calcular variaciones mensual/anual. Es una llamada aparte
     de la batch de precios diarios porque acá interesa un rango temporal
-    mucho más largo, y solo para el índice (no para los 102 componentes).
+    mucho más largo, y solo para el índice (no para sus componentes).
     Devuelve None ante cualquier fallo, en vez de interrumpir todo el
     pipeline: variación mensual/anual son "nice to have", no el dato
     principal.
@@ -409,31 +366,6 @@ def _descargar_historico_largo(ticker: str) -> Optional[pd.Series]:
     except Exception as e:  # noqa: BLE001 - no crítico, ver docstring
         log.warning("No se pudo descargar histórico largo de %s: %s", ticker, e)
         return None
-
-
-def _variacion_desde_dias_atras(cierres: pd.Series, fecha_referencia: date, dias_atras: int) -> Optional[float]:
-    """
-    Variación % entre el último cierre disponible y el cierre más cercano
-    (hacia atrás) a `fecha_referencia - dias_atras` días de calendario.
-    Se usa días de calendario (no ruedas de mercado) porque es como la
-    gente piensa "hace un mes" / "hace un año", y como se calcula en
-    Yahoo Finance.
-    """
-    if cierres is None or cierres.empty:
-        return None
-    fecha_objetivo = fecha_referencia - timedelta(days=dias_atras)
-    fechas_previas = cierres.index[cierres.index.date <= fecha_objetivo]
-    if fechas_previas.empty:
-        return None  # no hay suficiente historial para ese horizonte todavía
-    valor_referencia = cierres.loc[fechas_previas[-1]]
-    if isinstance(valor_referencia, pd.Series):
-        # Índice con fechas duplicadas: nos quedamos con el último valor
-        valor_referencia = valor_referencia.iloc[-1]
-    precio_referencia = float(valor_referencia)
-    precio_actual = float(cierres.iloc[-1])
-    if precio_referencia == 0:
-        return None
-    return round((precio_actual - precio_referencia) / precio_referencia * 100, 4)
 
 
 def _referencias_periodos(fecha_mercado: date, archivo: Path) -> dict:
@@ -565,7 +497,7 @@ def actualizar_precios(archivo_base: Path = ARCHIVO_PESOS_BASE, archivo_salida: 
 
     payload = {
         "indice": TICKER_INDICE,
-        "fecha_actualizacion": datetime.now().isoformat(timespec="seconds"),
+        "fecha_actualizacion": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "fecha_datos_mercado": fecha_mercado.isoformat(),
         "mercado_operado_hoy": mercado_operado_hoy,
         "variacion_real_SPY": var_real_SPY,

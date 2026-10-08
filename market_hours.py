@@ -1,15 +1,21 @@
 """Calendario local de NYSE: nunca consulta un proveedor de precios."""
 from datetime import datetime, timezone
+from functools import lru_cache
 
 import exchange_calendars as xcals
 import pandas as pd
 
 
-def market_is_open(now=None):
+@lru_cache(maxsize=1)
+def _nyse_calendar():
+    return xcals.get_calendar('XNYS')
+
+
+def market_is_open(now: datetime | None = None) -> bool:
     instant = pd.Timestamp(now or datetime.now(timezone.utc))
     if instant.tzinfo is None:
-        raise ValueError('La hora debe incluir zona horaria')
-    calendar = xcals.get_calendar('XNYS')
+        raise ValueError('La hora debe incluir zona horaria.')
+    calendar = _nyse_calendar()
     session = pd.Timestamp(instant.tz_convert('America/New_York').date())
     if not calendar.is_session(session):
         return False

@@ -8,8 +8,8 @@ import { state } from '../state.js';
 // ---------------------------------------------------------------------------
 
 export function initSearch(inputEl, onChange) {
-  inputEl.addEventListener('input', function () {
-    state.searchQuery = inputEl.value;
+  inputEl.addEventListener('input', () => {
+    state.searchQuery = inputEl.value.trim();
     onChange();
   });
 }

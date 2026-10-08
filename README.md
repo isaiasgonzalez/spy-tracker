@@ -17,10 +17,20 @@ No hay un paso de compilación del frontend. El dashboard carga `SPY_data.json`
 y muestra la fecha de mercado incluida en ese archivo. Tailwind, html2canvas y
 las fuentes se descargan desde sus respectivos CDN.
 
+### Estructura
+
+- `index.html` y `css/`: documento y estilos globales.
+- `js/main.js`: carga y orquestación de la interfaz.
+- `js/normalize.js`, `state.js` y `format.js`: adaptación y presentación de datos.
+- `js/ui/`: componentes de tabla, estadísticas, rendimiento y estados.
+- `script.py`: pipeline de pesos y precios.
+- `weights.py`: validación y aplicación de ponderaciones.
+- `market_hours.py`: calendario de sesiones NYSE.
+
 ## Actualización de datos
 
 ```sh
-# Usar los pesos del CSV incluido y escribir fuera del repositorio.
+# Usar los pesos del spy500.csv local y escribir fuera del repositorio.
 python script.py todo --output-dir /tmp/spy-tracker-data
 
 # Descargar la composición diaria oficial de State Street y luego los precios.

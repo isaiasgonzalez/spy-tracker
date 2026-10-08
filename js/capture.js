@@ -17,7 +17,7 @@ export function initCapture(captureBtn, captureBtnLabel) {
 }
 
 async function onCaptureClick(captureBtn, captureBtnLabel) {
-  if (!state.rawData || state.rawData.length === 0 || typeof html2canvas === 'undefined') return;
+  if (state.rawData.length === 0 || typeof window.html2canvas !== 'function') return;
 
   captureBtn.disabled = true;
   captureBtnLabel.textContent = 'Generando…';
@@ -31,7 +31,7 @@ async function onCaptureClick(captureBtn, captureBtnLabel) {
     if (document.fonts && document.fonts.ready) {
       try { await document.fonts.ready; } catch (e) { /* no crítico */ }
     }
-    const canvas = await html2canvas(card, { scale: 2, backgroundColor: null });
+    const canvas = await window.html2canvas(card, { scale: 2, backgroundColor: null });
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
     link.download = 'SPY_resumen_' + new Date().toISOString().slice(0, 10) + '.png';
@@ -41,8 +41,8 @@ async function onCaptureClick(captureBtn, captureBtnLabel) {
     console.error('Error al generar la imagen:', err);
     captureBtnLabel.textContent = 'No se pudo generar';
   } finally {
-    document.body.removeChild(card);
-    setTimeout(function () {
+    card.remove();
+    window.setTimeout(() => {
       captureBtnLabel.textContent = 'Descargar resumen';
       captureBtn.disabled = false;
     }, 1800);
@@ -60,10 +60,15 @@ const TOP_N = 5;
 // archivo: todo dato dinámico entra vía textContent.
 function buildCaptureCard() {
   const total = getSPYTotal();
-  const topSuba = state.rawData.slice().sort(function (a, b) { return Number(b.impacto_SPY) - Number(a.impacto_SPY); }).slice(0, TOP_N);
-  const topBaja = state.rawData.slice().sort(function (a, b) { return Number(a.impacto_SPY) - Number(b.impacto_SPY); }).slice(0, TOP_N);
-  const sumSuba = topSuba.reduce(function (acc, it) { return acc + Number(it.impacto_SPY || 0); }, 0);
-  const sumBaja = topBaja.reduce(function (acc, it) { return acc + Number(it.impacto_SPY || 0); }, 0);
+  const byImpact = state.rawData
+    .filter((item) => Number.isFinite(Number(item.impacto_SPY)))
+    .slice()
+    .sort((a, b) => Number(b.impacto_SPY) - Number(a.impacto_SPY));
+  const topSuba = byImpact.filter((item) => Number(item.impacto_SPY) > 0).slice(0, TOP_N);
+  const topBaja = byImpact.filter((item) => Number(item.impacto_SPY) < 0).slice(-TOP_N).reverse();
+  const sumImpact = (items) => items.reduce((sum, item) => sum + Number(item.impacto_SPY), 0);
+  const sumSuba = sumImpact(topSuba);
+  const sumBaja = sumImpact(topBaja);
   const fechaHoy = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const MONO = '"IBM Plex Mono", monospace';
@@ -93,9 +98,7 @@ function buildCaptureCard() {
   const heroLabel = document.createElement('p');
   heroLabel.style.cssText = 'font-family:' + MONO + '; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-700); margin:0 0 4px 0;';
   heroLabel.textContent = 'Variación del índice hoy';
-  const total_positive = total > 0;
-  const total_negative = total < 0;
-  const heroColor = total_positive ? 'var(--gain)' : total_negative ? 'var(--loss)' : 'var(--ink-950)';
+  const heroColor = total > 0 ? 'var(--gain)' : total < 0 ? 'var(--loss)' : 'var(--ink-950)';
   const heroNum = document.createElement('p');
   heroNum.style.cssText =
     'font-family:' + MONO + '; font-variant-numeric:tabular-nums; font-size:40px; font-weight:500; color:' + heroColor + '; margin:0;';

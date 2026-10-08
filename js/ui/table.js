@@ -9,26 +9,23 @@ import { formatPercent } from '../format.js';
 // ---------------------------------------------------------------------------
 
 export function sortAndRenderTable(container) {
-  const key = state.sortState.key;
-  const dir = state.sortState.dir;
-  const col = columns.find(function (c) { return c.key === key; });
+  const { key, dir } = state.sortState;
+  const column = columns.find((item) => item.key === key);
   const query = state.searchQuery.trim().toLowerCase();
   const filtered = query
-    ? state.rawData.filter(function (item) { return String(item.ticker).toLowerCase().includes(query); })
+    ? state.rawData.filter((item) => item.ticker.toLowerCase().includes(query))
     : state.rawData.slice();
-  const sorted = filtered.sort(function (a, b) {
-    let av = a[key];
-    let bv = b[key];
-    if (col.type === 'number') {
-      av = Number(av);
-      bv = Number(bv);
-      return dir === 'asc' ? av - bv : bv - av;
+  const direction = dir === 'asc' ? 1 : -1;
+  const sorted = filtered.sort((a, b) => {
+    if (column.type === 'number') {
+      const left = a[key] === null ? Number.NaN : Number(a[key]);
+      const right = b[key] === null ? Number.NaN : Number(b[key]);
+      if (!Number.isFinite(left) && !Number.isFinite(right)) return 0;
+      if (!Number.isFinite(left)) return 1;
+      if (!Number.isFinite(right)) return -1;
+      return (left - right) * direction;
     }
-    av = String(av).toLowerCase();
-    bv = String(bv).toLowerCase();
-    if (av < bv) return dir === 'asc' ? -1 : 1;
-    if (av > bv) return dir === 'asc' ? 1 : -1;
-    return 0;
+    return String(a[key]).localeCompare(String(b[key]), 'es', { sensitivity: 'base' }) * direction;
   });
   renderTable(container, sorted);
 }
@@ -37,7 +34,7 @@ function onHeaderActivate(container, key) {
   if (state.sortState.key === key) {
     state.sortState.dir = state.sortState.dir === 'asc' ? 'desc' : 'asc';
   } else {
-    const col = columns.find(function (c) { return c.key === key; });
+    const col = columns.find((item) => item.key === key);
     state.sortState.key = key;
     state.sortState.dir = col.type === 'number' ? 'desc' : 'asc';
   }
@@ -46,6 +43,7 @@ function onHeaderActivate(container, key) {
 
 function renderTable(container, data) {
   container.replaceChildren();
+  container.setAttribute('aria-busy', 'false');
 
   const scrollWrap = document.createElement('div');
   scrollWrap.className = 'overflow-x-auto';
@@ -66,7 +64,9 @@ function renderTable(container, data) {
     tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
-    data.forEach(function (item) { tbody.appendChild(buildRow(item)); });
+    const rows = document.createDocumentFragment();
+    data.forEach((item) => rows.appendChild(buildRow(item)));
+    tbody.appendChild(rows);
   }
   table.appendChild(tbody);
 
@@ -79,41 +79,36 @@ function buildHead(container) {
   const headRow = document.createElement('tr');
   headRow.className = 'border-b border-[var(--ink-150)]';
 
-  columns.forEach(function (col) {
+  columns.forEach((col) => {
     const isActive = state.sortState.key === col.key;
 
     const th = document.createElement('th');
     th.scope = 'col';
-    th.tabIndex = 0;
     th.setAttribute('aria-sort', isActive ? (state.sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none');
-    th.className = [
-      'select-none cursor-pointer whitespace-nowrap px-4 py-3 font-data text-[11px] uppercase tracking-wider transition-colors',
+    th.className = `whitespace-nowrap px-2 py-1 ${col.align === 'right' ? 'text-right' : 'text-left'}`;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = [
+      'inline-flex w-full items-center gap-1.5 px-2 py-2 font-data text-[11px] uppercase tracking-wider transition-colors',
       'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--ink-700)]',
       isActive ? 'text-[var(--ink-950)]' : 'text-[var(--ink-700)] hover:text-[var(--ink-950)]',
-      col.align === 'right' ? 'text-right' : 'text-left',
+      col.align === 'right' ? 'justify-start flex-row-reverse' : 'justify-start',
     ].join(' ');
-
-    const inner = document.createElement('span');
-    inner.className = 'inline-flex items-center gap-1.5' + (col.align === 'right' ? ' flex-row-reverse' : '');
+    button.setAttribute('aria-label', `Ordenar por ${col.label}`);
 
     const label = document.createElement('span');
     label.textContent = col.label;
-    inner.appendChild(label);
+    button.appendChild(label);
 
     if (isActive) {
       const tri = document.createElement('span');
       tri.className = state.sortState.dir === 'asc' ? 'tri-up' : 'tri-down';
-      inner.appendChild(tri);
+      button.appendChild(tri);
     }
 
-    th.appendChild(inner);
-    th.addEventListener('click', function () { onHeaderActivate(container, col.key); });
-    th.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onHeaderActivate(container, col.key);
-      }
-    });
+    button.addEventListener('click', () => onHeaderActivate(container, col.key));
+    th.appendChild(button);
     headRow.appendChild(th);
   });
 
